@@ -1,0 +1,26 @@
+version: '3.8'  
+services:
+  identityapi:
+    build:
+      context: ./
+      dockerfile: ./IdentityApi/Dockerfile 
+    ports:
+      - "5000:80"  
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=db;Database=IdentityService;User=sa;Password=YourComplexPassword!123;TrustServerCertificate=True
+    depends_on:
+      - db  
+
+  db:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourComplexPassword!123
+    ports:
+      - "1433:1433" 
+    volumes:
+      - mssql_data:/var/opt/mssql 
+
+volumes:
+  mssql_data:
