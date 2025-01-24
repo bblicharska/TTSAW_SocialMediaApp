@@ -1,25 +1,26 @@
-ï»¿FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
+#See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
 
+FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
 WORKDIR /app
+EXPOSE 80
 
-COPY ./IdentityApi/IdentityApi.csproj ./IdentityApi/
-COPY ./IdentityServiceApplication/IdentityServiceApplication.csproj ./IdentityServiceApplication/
-COPY ./IdentityServiceDomain/IdentityServiceDomain.csproj ./IdentityServiceDomain/
-COPY ./IdentityServiceInfrastructure/IdentityServiceInfrastructure.csproj ./IdentityServiceInfrastructure/
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
+WORKDIR /src
+# Zmieniamy œcie¿ki w zale¿noœci od lokalizacji Dockerfile
+COPY ["../IdentityApi/IdentityApi.csproj", "IdentityApi/"]
+COPY ["../IdentityServiceApplication/IdentityServiceApplication.csproj", "IdentityServiceApplication/"]
+COPY ["../IdentityServiceDomain/IdentityServiceDomain.csproj", "IdentityServiceDomain/"]
+COPY ["../IdentityServiceInfrastructure/IdentityServiceInfrastructure.csproj", "IdentityServiceInfrastructure/"]
+RUN dotnet restore "IdentityApi/IdentityApi.csproj"
+COPY . .
+WORKDIR "/src/IdentityApi"
+RUN dotnet build "IdentityApi.csproj" -c Release -o /app/build
 
-RUN dotnet restore ./IdentityApi/IdentityApi.csproj
+FROM build AS publish
+RUN dotnet publish "IdentityApi.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-COPY ./IdentityApi/. ./IdentityApi/
-COPY ./IdentityServiceApplication/. ./IdentityServiceApplication/
-COPY ./IdentityServiceDomain/. ./IdentityServiceDomain/
-COPY ./IdentityServiceInfrastructure/. ./IdentityServiceInfrastructure/
-
-
-RUN dotnet publish ./IdentityApi/IdentityApi.csproj -c Release -o /app/publish
-
-FROM mcr.microsoft.com/dotnet/aspnet:6.0
-
+FROM base AS final
 WORKDIR /app
-COPY --from=build /app/publish .
-
+COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "IdentityApi.dll"]
+

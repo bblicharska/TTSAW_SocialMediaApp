@@ -1,26 +1,26 @@
-version: '3.8'  
+version: '3.4'
+
+networks: 
+    identityapiapp:
+
 services:
-  identityapi:
-    build:
-      context: ./
-      dockerfile: ./IdentityApi/Dockerfile 
-    ports:
-      - "5000:80"  
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=db;Database=IdentityService;User=sa;Password=YourComplexPassword!123;TrustServerCertificate=True
-    depends_on:
-      - db  
-
   db:
-    image: mcr.microsoft.com/mssql/server:2019-latest
-    environment:
+    container_name: identity-db
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports: 
+      - 8002:1433
+    environment: 
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=YourComplexPassword!123
+      - SA_PASSWORD=Password@1235#
+  identityapi:
+    container_name: identity-api
+    image: ${DOCKER_REGISTRY-}identityapi
+    build:
+      context: .
+      dockerfile: IdentityApi/Dockerfile
     ports:
-      - "1433:1433" 
-    volumes:
-      - mssql_data:/var/opt/mssql 
-
-volumes:
-  mssql_data:
+      - 8001:80
+    depends_on:
+      - db
+    networks: 
+      - identityapiapp
