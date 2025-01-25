@@ -22,6 +22,10 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.ListenAnyIP(5000); // HTTP
+    });
     // Add services to the container.
 
     // NLog: Setup NLog for Dependency injection
@@ -95,18 +99,12 @@ try
           };
       });
 
-
-    // rejestracja kontekstu bazy w kontenerze IoC
-    //var sqliteConnectionString = @"Data Source=Kiosk.WebAPI.Logger.db";
-    // var sqliteConnectionString = @"Data Source=c:\DyskD\SaleKioskStudent.db";
     var mssqlConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
     builder.Services.AddSingleton(sp =>
         sp.GetRequiredService<IOptions<JwtSettings>>().Value);
     builder.Services.AddDbContext<UserDbContext>(options =>
         options.UseSqlServer(mssqlConnectionString));
-
-    // rejestracja walidatora
 
     builder.Services.AddScoped<IUserRepository, UserRepository>();
     builder.Services.AddScoped<IUserUnitOfWork, UserUnitOfWork>();
@@ -119,8 +117,6 @@ try
 
     builder.Services.AddScoped<ExceptionMiddleware>();
 
-    // rejestruje w kontenerze zale¿noœci politykê CORS o nazwie SaleKiosk,
-    // która zapewnia dostêp do API z dowolnego miejsca oraz przy pomocy dowolnej metody
     builder.Services.AddCors(o => o.AddPolicy("TTSAW", builder =>
     {
         builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
@@ -129,7 +125,6 @@ try
 
     var app = builder.Build();
 
-    // Configure the HTTP request pipeline.
     app.UseStaticFiles();
     if (app.Environment.IsDevelopment())
     {
@@ -138,8 +133,6 @@ try
     }
 
     app.UseMiddleware<ExceptionMiddleware>();
-
-    app.UseHttpsRedirection();
 
     app.UseAuthentication();
     app.UseAuthorization();
@@ -152,8 +145,37 @@ try
     // seeding data
     using (var scope = app.Services.CreateScope())
     {
+        // Sprawdzanie po³¹czenia z baz¹ danych
+        var dbContext = scope.ServiceProvider.GetRequiredService<UserDbContext>();
+        try
+        {
+            if (dbContext.Database.CanConnect())
+            {
+                Console.WriteLine("Successfully connected to the database.");
+            }
+            else
+            {
+                Console.WriteLine("Failed to connect to the database.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Database connection error: {ex.Message}");
+        }
+
+        // Seeding danych
+   
         var dataSeeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
-        dataSeeder.Seed();
+        try
+        {
+            dataSeeder.Seed();
+            Console.WriteLine("Database seeding completed successfully.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during seeding: {ex.Message}");
+            // Nie przerywaj dzia³ania aplikacji
+        }
     }
 
     app.Run();

@@ -1,5 +1,6 @@
 ﻿using IdentityServiceApplication.Services;
 using IdentityServiceDomain.Models;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,37 +22,56 @@ namespace IdentityServiceInfrastructure
 
         public void Seed()
         {
-            _dbContext.Database.EnsureDeleted();
-            _dbContext.Database.EnsureCreated();
-
-            if (_dbContext.Database.CanConnect())
+            try
             {
-                if (!_dbContext.Users.Any())
+                // Sprawdzenie, czy można połączyć się z bazą danych
+                if (_dbContext.Database.CanConnect())
                 {
-                    var users = new List<User>
+                    // Zastosowanie wszystkich migracji, jeśli baza danych jest dostępna
+                    _dbContext.Database.Migrate();
+
+                    // Seed tylko wtedy, gdy brak użytkowników w bazie danych
+                    if (!_dbContext.Users.Any())
                     {
-                        new User()
-                        {
-                            Username = "Adam Nowak",
-                            Email = "adamNowak@gmail.com",
-                            Role = "User",
-                            CreatedAt = DateTime.Now.AddDays(-1),
-                            PasswordHash = _passwordHasher.HashPassword("Password123")
-                        },
+                        var users = new List<User>
+                {
+                    new User()
+                    {
+                        Username = "Adam Nowak",
+                        Email = "adamNowak@gmail.com",
+                        Role = "User",
+                        CreatedAt = DateTime.Now.AddDays(-1),
+                        PasswordHash = _passwordHasher.HashPassword("Password123")
+                    },
+                    new User()
+                    {
+                        Username = "Jan Kowalski",
+                        Email = "janKowalski@gmail.com",
+                        Role = "User",
+                        CreatedAt = DateTime.Now.AddDays(-2),
+                        PasswordHash = _passwordHasher.HashPassword("Password456")
+                    }
+                };
 
-                        new User()
-                        {
-                            Username = "Jan Kowalski",
-                            Email = "janKowalski@gmail.com",
-                            Role = "User",
-                            CreatedAt = DateTime.Now.AddDays(-2),
-                            PasswordHash = _passwordHasher.HashPassword("Password456") 
-                        }
-                    };
-
-                    _dbContext.Users.AddRange(users);
-                    _dbContext.SaveChanges(); 
+                        _dbContext.Users.AddRange(users);
+                        _dbContext.SaveChanges();
+                        Console.WriteLine("Seeding completed successfully.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Users already exist. Skipping seeding.");
+                    }
                 }
+                else
+                {
+                    Console.WriteLine("Cannot connect to the database. Skipping migrations and seeding.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred during seeding: {ex.Message}");
+                // Rzucanie wyjątku, jeśli konieczne
+                throw;
             }
         }
     }
