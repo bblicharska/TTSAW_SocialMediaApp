@@ -16,7 +16,7 @@ namespace PeopleServiceApplication.Services
         private readonly IConnectionUnitOfWork _uow;
         private readonly IMapper _mapper;
         private readonly HttpClient _httpClient;
-        private readonly string _identityApiUrl = "https://localhost:7132"; // URL Identity API
+        private readonly string _identityApiUrl = "http://localhost:8001"; // URL Identity API
 
         public ConnectionService(IConnectionUnitOfWork uow, IMapper mapper, HttpClient httpClient)
         {

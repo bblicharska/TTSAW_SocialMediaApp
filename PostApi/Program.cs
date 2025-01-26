@@ -70,9 +70,9 @@ try
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
-                ValidIssuer = "https://localhost:7132", // Issuer z IdentityService
+                ValidIssuer = jwtSettings["Issuer"], // Issuer z IdentityService
                 ValidateAudience = true,
-                ValidAudience = "https://localhost:7132", // Audience z IdentityService
+                ValidAudience = jwtSettings["Audience"], // Audience z IdentityService
                 ValidateLifetime = true, // Sprawdza czas wa¿noœci tokenu
                 ValidateIssuerSigningKey = true, // W³¹czenie weryfikacji klucza podpisuj¹cego
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]))
@@ -126,8 +126,6 @@ try
     }
 
     app.UseMiddleware<ExceptionMiddleware>();
-
-    app.UseHttpsRedirection();
 
     app.UseAuthentication();
     app.UseAuthorization();

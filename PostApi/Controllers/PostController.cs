@@ -84,7 +84,7 @@ namespace PostApi.Controllers
             {
                 var client = _httpClientFactory.CreateClient();
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                var response = await client.GetAsync($"https://localhost:7132/User/{userId}");
+                var response = await client.GetAsync($"http://localhost:8001/User/{userId}");
 
                 if (!response.IsSuccessStatusCode)
                 {

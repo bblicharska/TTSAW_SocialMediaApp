@@ -17,7 +17,7 @@ namespace Application.Services
         private readonly IPostUnitOfWork _uow;
         private readonly IMapper _mapper;
         private readonly HttpClient _httpClient;
-        private readonly string _identityApiUrl = "https://localhost:7132"; // URL Identity API
+        private readonly string _identityApiUrl = "http://localhost:8001"; // URL Identity API
 
         public PostService(IPostUnitOfWork unitOfWork, IMapper mapper, HttpClient httpClient)
         {

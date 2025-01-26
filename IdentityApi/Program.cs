@@ -21,11 +21,6 @@ logger.Debug("init main");
 try
 {
     var builder = WebApplication.CreateBuilder(args);
-
-    builder.WebHost.ConfigureKestrel(options =>
-    {
-        options.ListenAnyIP(5000); // HTTP
-    });
     // Add services to the container.
 
     // NLog: Setup NLog for Dependency injection
