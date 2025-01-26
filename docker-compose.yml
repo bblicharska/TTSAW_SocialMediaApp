@@ -7,27 +7,15 @@ services:
   db:
     container_name: identity-db
     image: mcr.microsoft.com/mssql/server:2022-latest
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-          cpus: "2.0"
     ports:
-      - 1433:1433
+      - "1433:1433"
     environment:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=Password@1235#
     volumes:
        - ./sqlserver/data:/var/opt/mssql/data
-       - ./sqlserver/log:/var/opt/mssql/log
     networks:
       - identityapiapp
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:1433"]
-      interval: 30s
-      retries: 5
-      start_period: 10s
-      timeout: 5s
 
   identityapi:
     container_name: identity-api
@@ -36,9 +24,10 @@ services:
       context: .
       dockerfile: IdentityApi/Dockerfile
     ports:
-      - 8001:80
+      - "8001:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=db;Database=IdentityService;User Id=sa;Password=Password@1235#;TrustServerCertificate=True;
     depends_on:
-       db:
-        condition: service_started
+      - db
     networks:
       - identityapiapp

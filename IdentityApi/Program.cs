@@ -21,6 +21,8 @@ logger.Debug("init main");
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+    builder.WebHost.UseUrls("http://localhost:8001");
+
     // Add services to the container.
 
     // NLog: Setup NLog for Dependency injection
@@ -99,7 +101,8 @@ try
     builder.Services.AddSingleton(sp =>
         sp.GetRequiredService<IOptions<JwtSettings>>().Value);
     builder.Services.AddDbContext<UserDbContext>(options =>
-        options.UseSqlServer(mssqlConnectionString));
+        options.UseSqlServer(mssqlConnectionString, sqlOptions => sqlOptions.MigrationsAssembly("IdentityServiceInfrastructure")));
+
 
     builder.Services.AddScoped<IUserRepository, UserRepository>();
     builder.Services.AddScoped<IUserUnitOfWork, UserUnitOfWork>();
@@ -119,6 +122,14 @@ try
 
 
     var app = builder.Build();
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<UserDbContext>();
+        dbContext.Database.Migrate(); // Zastosowanie migracji
+
+        var dataSeeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
+        dataSeeder.Seed();  // Seeding danych (jeœli potrzebujesz)
+    }
 
     app.UseStaticFiles();
     if (app.Environment.IsDevelopment())
@@ -138,41 +149,7 @@ try
     app.UseCors("TTSAW");
 
     // seeding data
-    using (var scope = app.Services.CreateScope())
-    {
-        // Sprawdzanie po³¹czenia z baz¹ danych
-        var dbContext = scope.ServiceProvider.GetRequiredService<UserDbContext>();
-        try
-        {
-            if (dbContext.Database.CanConnect())
-            {
-                Console.WriteLine("Successfully connected to the database.");
-            }
-            else
-            {
-                Console.WriteLine("Failed to connect to the database.");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Database connection error: {ex.Message}");
-        }
-
-        // Seeding danych
-   
-        var dataSeeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
-        try
-        {
-            dataSeeder.Seed();
-            Console.WriteLine("Database seeding completed successfully.");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error during seeding: {ex.Message}");
-            // Nie przerywaj dzia³ania aplikacji
-        }
-    }
-
+ 
     app.Run();
 }
 catch (Exception exception)
