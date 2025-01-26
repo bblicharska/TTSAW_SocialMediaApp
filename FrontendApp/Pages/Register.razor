@@ -1,0 +1,92 @@
+﻿@page "/register"
+@inject HttpClient Http
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+
+
+<h3 >Sign up</h3>
+<EditForm Model="@registerUserDto" OnValidSubmit="RegisterUser">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+    <div class="form-group">
+                <label for="username">Username</label>
+                <InputText id="username" @bind-Value="registerUserDto.Username" class="form-control" Placeholder="Username" />
+            </div>
+
+    <div class="form-group">
+                <label for="email">Email</label>
+                <InputText id="email" @bind-Value="registerUserDto.Email"class="form-control" Placeholder="Email" />
+            </div>
+
+    <div class="form-group">
+                <label for="password">Password</label>
+                <InputText id="password" @bind-Value="registerUserDto.Password" class="form-control" InputType="password" Placeholder="Password" />
+            </div>
+
+    <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <InputText id="confirmPassword" @bind-Value="registerUserDto.ConfirmPassword" class="form-control" InputType="password" Placeholder="Confirm Password" />
+            </div>
+
+    <button type="submit" class="btn btn-primary">
+                Sign up
+            </button>
+ </EditForm>
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <p style="color: green;">@successMessage</p>
+}
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <p style="color: red;">@errorMessage</p>
+}
+
+
+@code {
+    private RegisterUserDto registerUserDto = new();
+    private string? successMessage;
+    private string? errorMessage;
+
+    private async Task RegisterUser()
+    {
+        try
+        {
+            errorMessage = null;
+            successMessage = null;
+            var response = await Http.PostAsJsonAsync("http://localhost:8001/User/register", registerUserDto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                    successMessage = "Registration successful. You can now log in.";
+            }
+            else
+            {
+                errorMessage = "Registration failed. Please try again.";
+
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine("Błąd rejestracji: " + errorContent);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Błąd: {ex.Message}");
+        }
+    }
+
+    public class RegisterUserDto
+    {
+        public string Username { get; set; }
+
+        public string Email { get; set; }
+        public string Password { get; set; }
+        public string ConfirmPassword { get; set; }
+    }
+    public class TokenDto
+    {
+        public string AccessToken { get; set; } // Twój JWT
+        public DateTime ExpiresAt { get; set; } // Data wygaśnięcia tokenu
+    }
+}
+

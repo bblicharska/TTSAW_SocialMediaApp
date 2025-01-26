@@ -1,0 +1,111 @@
+﻿@page "/explorePosts"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<h3>Lista postów</h3>
+
+@if (ErrorMessage != null)
+{
+    <div class="alert alert-danger">@ErrorMessage</div>
+}
+else if (Posts == null)
+{
+    <p>Ładowanie...</p>
+}
+else if (!Posts.Any())
+{
+    <p>Brak postów do wyświetlenia.</p>
+}
+else
+{
+    <div>
+        @foreach (var post in Posts)
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Post ID: @post.Id</h5>
+                    <p class="card-text">@post.Content</p>
+                    <small class="text-muted">Utworzono: @post.CreatedAt.ToString("g")</small>
+
+                    <hr />
+
+                    <div>
+                        <strong>Liczba polubień:</strong> @post.Likes?.Count ?? 0
+                    </div>
+
+                    <a class="btn btn-info mt-2" @onclick="() => ViewPostDetails(post.Id)">Zobacz szczegóły</a>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<PostDto> Posts;
+    private string ErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Pobierz token z localStorage
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+
+            if (string.IsNullOrEmpty(token))
+            {
+                ErrorMessage = "Nie znaleziono tokenu autoryzacyjnego. Proszę się zalogować.";
+                return;
+            }
+
+            // Dodaj token do nagłówka HTTP w żądaniu
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            // Pobierz posty z API
+            Posts = await Http.GetFromJsonAsync<List<PostDto>>("http://localhost:5134/Post");
+        }
+        catch (HttpRequestException ex)
+        {
+            ErrorMessage = $"Błąd podczas pobierania danych: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Wystąpił nieoczekiwany błąd: {ex.Message}";
+        }
+    }
+
+    private void ViewPostDetails(int postId)
+    {
+        // Przekierowuje do strony szczegółów posta
+        Navigation.NavigateTo($"/postDetails/{postId}");
+    }
+
+
+    private class PostDto
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public string Content { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string ImageUrl { get; set; }
+        public List<CommentDto> Comments { get; set; }
+        public List<LikeDto> Likes { get; set; }
+    }
+
+    private class CommentDto
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public int PostId { get; set; }
+        public string Content { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    private class LikeDto
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public int PostId { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+}

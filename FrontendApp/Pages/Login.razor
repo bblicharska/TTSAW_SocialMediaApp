@@ -1,0 +1,87 @@
+﻿@page "/login"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Forms
+
+<h3>Sign in</h3>
+
+<EditForm Model="@loginUserDto" OnValidSubmit="LoginUser" FormName="LoginForm">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="Username">Username or e-mail:</label>
+        <InputText id="Username" class="form-control" @bind-Value="loginUserDto.UsernameOrEmail" Placeholder="Username or E-mail" />
+    </div>
+
+    <div class="form-group">
+        <label for="Password">Password:</label>
+        <InputText id="Password" type="password" class="form-control" @bind-Value="loginUserDto.Password" Placeholder="Password" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Sign in</button>
+</EditForm>
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <p style="color: green;">@successMessage</p>
+}
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <p style="color: red;">@errorMessage</p>
+}
+
+
+@code {
+    private LoginUserDto loginUserDto = new LoginUserDto();
+    private string? successMessage;
+    private string? errorMessage;
+    // Handle the login process
+    private async Task LoginUser()
+    {
+        errorMessage = null;
+        successMessage = null;
+        // Send login request to the API
+        var response = await Http.PostAsJsonAsync("http://localhost:8001/User/login", loginUserDto);
+        Console.WriteLine(response);
+
+        if (response.IsSuccessStatusCode)
+        {
+            // If login is successful, get the JWT token
+            var result = await response.Content.ReadFromJsonAsync<TokenDto>();
+            successMessage = "Login successful.";
+            if (result != null && !string.IsNullOrEmpty(result.AccessToken))
+            {
+                // Store the token in localStorage
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "authToken", result.AccessToken);
+
+            }
+            else
+            {
+                // Handle missing or invalid token
+                // Optionally, show an error message
+            }
+        }
+        else
+        {
+            // Handle login failure (e.g., invalid credentials)
+            // Optionally, show an error message
+            errorMessage = "Registration failed. Please try again.";
+            var error = await response.Content.ReadAsStringAsync();
+        }
+    }
+
+    private class LoginUserDto
+    {
+        public string UsernameOrEmail { get; set; }
+        public string Password { get; set; }
+    }
+
+    public class TokenDto
+    {
+        public string AccessToken { get; set; } // Twój JWT
+        public DateTime ExpiresAt { get; set; } // Data wygaśnięcia tokenu
+    }
+}
+
