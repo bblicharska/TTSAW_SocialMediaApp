@@ -43,7 +43,7 @@
         errorMessage = null;
         successMessage = null;
         // Send login request to the API
-        var response = await Http.PostAsJsonAsync("http://localhost:8001/User/login", loginUserDto);
+        var response = await Http.PostAsJsonAsync("http://identity-api:8001/User/login", loginUserDto);
         Console.WriteLine(response);
 
         if (response.IsSuccessStatusCode)

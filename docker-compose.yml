@@ -16,6 +16,16 @@ services:
        - ./sqlserver/data:/var/opt/mssql/data
     networks:
       - socialmediaapp
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P 'Password@1235#' -Q 'SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    entrypoint: /bin/bash -c "apt-get update && apt-get install -y mssql-tools && /opt/mssql/bin/sqlservr"
+    user: root 
+    command: /opt/mssql/bin/sqlservr  
+    restart: always
 
   identityapi:
     container_name: identity-api
@@ -28,7 +38,8 @@ services:
     environment:
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=IdentityService;User Id=sa;Password=Password@1235#;TrustServerCertificate=True;
     depends_on:
-      - sqlserver
+      sqlserver:
+        condition: service_healthy
     networks:
       - socialmediaapp
 
@@ -43,7 +54,8 @@ services:
     environment:
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=PostService;User Id=sa;Password=Password@1235#;TrustServerCertificate=True;
     depends_on:
-      - sqlserver
+      sqlserver:
+        condition: service_healthy
     networks:
       - socialmediaapp
 
@@ -58,7 +70,8 @@ services:
     environment:
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=PeopleService;User Id=sa;Password=Password@1235#;TrustServerCertificate=True;
     depends_on:
-      - sqlserver
+      sqlserver:
+        condition: service_healthy
     networks:
       - socialmediaapp
 

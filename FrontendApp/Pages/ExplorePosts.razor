@@ -62,7 +62,7 @@ else
             Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             // Pobierz posty z API
-            Posts = await Http.GetFromJsonAsync<List<PostDto>>("http://localhost:5134/Post");
+            Posts = await Http.GetFromJsonAsync<List<PostDto>>("http://post-api:5134/Post");
         }
         catch (HttpRequestException ex)
         {

@@ -101,7 +101,12 @@ try
     builder.Services.AddSingleton(sp =>
         sp.GetRequiredService<IOptions<JwtSettings>>().Value);
     builder.Services.AddDbContext<UserDbContext>(options =>
-        options.UseSqlServer(mssqlConnectionString, sqlOptions => sqlOptions.MigrationsAssembly("IdentityServiceInfrastructure")));
+        options.UseSqlServer(mssqlConnectionString, sqlOptions => { sqlOptions.MigrationsAssembly("IdentityServiceInfrastructure");
+            sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 30,
+                    maxRetryDelay: TimeSpan.FromSeconds(5),
+                    errorNumbersToAdd: null);
+        }));
 
 
     builder.Services.AddScoped<IUserRepository, UserRepository>();

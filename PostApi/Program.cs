@@ -80,17 +80,9 @@ try
         });
 
 
-    // rejestracja automatycznej walidacji (FluentValidation waliduje i przekazuje wynik przez ModelState)
-    //builder.Services.AddFluentValidationAutoValidation();
-
-    // rejestracja kontekstu bazy w kontenerze IoC
-    //var sqliteConnectionString = @"Data Source=Kiosk.WebAPI.Logger.db";
-    // var sqliteConnectionString = @"Data Source=c:\DyskD\SaleKioskStudent.db";
     var mssqlConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     builder.Services.AddDbContext<PostDbContext>(options =>
         options.UseSqlServer(mssqlConnectionString, sqlOptions => sqlOptions.MigrationsAssembly("Infrastructure")));
-
-    // rejestracja walidatora
 
     builder.Services.AddHttpClient();
     builder.Services.AddScoped<IPostUnitOfWork, PostUnitOfWork>();
@@ -107,8 +99,6 @@ try
 
     builder.Services.AddScoped<ExceptionMiddleware>();
 
-    // rejestruje w kontenerze zale¿noœci politykê CORS o nazwie SaleKiosk,
-    // która zapewnia dostêp do API z dowolnego miejsca oraz przy pomocy dowolnej metody
     builder.Services.AddCors(o => o.AddPolicy("TTSAW", builder =>
     {
         builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
@@ -140,7 +130,7 @@ try
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<PostDbContext>();
         var dataSeeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
-        dataSeeder.Seed();  // Seeding danych (jeœli potrzebujesz)
+        dataSeeder.Seed();  
     }
 
     app.Run();
