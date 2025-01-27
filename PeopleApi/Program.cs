@@ -83,7 +83,7 @@ try
     // var sqliteConnectionString = @"Data Source=c:\DyskD\SaleKioskStudent.db";
     var mssqlConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     builder.Services.AddDbContext<PeopleDbContext>(options =>
-        options.UseSqlServer(mssqlConnectionString));
+        options.UseSqlServer(mssqlConnectionString, sqlOptions => sqlOptions.MigrationsAssembly("PeopleServiceInfrastructure")));
 
     // rejestracja walidatora
 
@@ -128,9 +128,11 @@ try
     // seeding data
     using (var scope = app.Services.CreateScope())
     {
+        var dbContext = scope.ServiceProvider.GetRequiredService<PeopleDbContext>();
         var dataSeeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
-        dataSeeder.Seed();
+        dataSeeder.Seed();  // Seeding danych (jeœli potrzebujesz)
     }
+
 
     app.Run();
 }

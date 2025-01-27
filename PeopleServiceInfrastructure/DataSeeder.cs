@@ -1,4 +1,5 @@
-﻿using PeopleServiceDomain.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using PeopleServiceDomain.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,11 +19,10 @@ namespace PeopleServiceInfrastructure
 
         public void Seed()
         {
-            _dbContext.Database.EnsureDeleted();
-            _dbContext.Database.EnsureCreated();
-
             if (_dbContext.Database.CanConnect())
             {
+                _dbContext.Database.Migrate();
+
                 if (!_dbContext.Connections.Any())
                 {
                     var connections = new List<Connection>

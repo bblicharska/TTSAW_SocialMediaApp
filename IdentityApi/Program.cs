@@ -125,8 +125,6 @@ try
     using (var scope = app.Services.CreateScope())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<UserDbContext>();
-        dbContext.Database.Migrate(); // Zastosowanie migracji
-
         var dataSeeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
         dataSeeder.Seed();  // Seeding danych (jeœli potrzebujesz)
     }

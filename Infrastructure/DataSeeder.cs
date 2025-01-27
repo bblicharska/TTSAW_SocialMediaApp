@@ -1,4 +1,5 @@
 ﻿using Domain.Models;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,11 +19,11 @@ namespace Infrastructure
 
         public void Seed()
         {
-            _dbContext.Database.EnsureDeleted();
-            _dbContext.Database.EnsureCreated();
 
             if (_dbContext.Database.CanConnect())
             {
+                _dbContext.Database.Migrate();
+
                 if (!_dbContext.Posts.Any())
                 {
                     var posts = new List<Post>

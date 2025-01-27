@@ -1,11 +1,11 @@
 version: '3.4'
 
 networks:
-  identityapiapp:
+  socialmediaapp:
 
 services:
-  db:
-    container_name: identity-db
+  sqlserver:
+    container_name: sqlserver
     image: mcr.microsoft.com/mssql/server:2022-latest
     ports:
       - "1433:1433"
@@ -15,7 +15,7 @@ services:
     volumes:
        - ./sqlserver/data:/var/opt/mssql/data
     networks:
-      - identityapiapp
+      - socialmediaapp
 
   identityapi:
     container_name: identity-api
@@ -26,8 +26,38 @@ services:
     ports:
       - "8001:8080"
     environment:
-      - ConnectionStrings__DefaultConnection=Server=db;Database=IdentityService;User Id=sa;Password=Password@1235#;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=IdentityService;User Id=sa;Password=Password@1235#;TrustServerCertificate=True;
     depends_on:
-      - db
+      - sqlserver
     networks:
-      - identityapiapp
+      - socialmediaapp
+
+  postapi:
+    container_name: post-api
+    image: ${DOCKER_REGISTRY-}postapi
+    build:
+      context: .
+      dockerfile: PostApi/Dockerfile
+    ports:
+      - "5134:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=PostService;User Id=sa;Password=Password@1235#;TrustServerCertificate=True;
+    depends_on:
+      - sqlserver
+    networks:
+      - socialmediaapp
+
+  peopleapi:
+    container_name: people-api
+    image: ${DOCKER_REGISTRY-}peopleapi
+    build:
+      context: .
+      dockerfile: PeopleApi/Dockerfile
+    ports:
+      - "5030:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=PeopleService;User Id=sa;Password=Password@1235#;TrustServerCertificate=True;
+    depends_on:
+      - sqlserver
+    networks:
+      - socialmediaapp
