@@ -21,8 +21,8 @@ logger.Debug("init main");
 try
 {
     var builder = WebApplication.CreateBuilder(args);
-    builder.WebHost.UseUrls("http://localhost:8001");
-
+    builder.WebHost.UseUrls("http://0.0.0.0:8001");
+    
     // Add services to the container.
 
     // NLog: Setup NLog for Dependency injection

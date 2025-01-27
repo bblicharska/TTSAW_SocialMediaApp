@@ -24,7 +24,7 @@ services:
       context: .
       dockerfile: IdentityApi/Dockerfile
     ports:
-      - "8001:8080"
+      - "8001:8001"
     environment:
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=IdentityService;User Id=sa;Password=Password@1235#;TrustServerCertificate=True;
     depends_on:
@@ -39,7 +39,7 @@ services:
       context: .
       dockerfile: PostApi/Dockerfile
     ports:
-      - "5134:8080"
+      - "5134:5134"
     environment:
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=PostService;User Id=sa;Password=Password@1235#;TrustServerCertificate=True;
     depends_on:
@@ -54,10 +54,26 @@ services:
       context: .
       dockerfile: PeopleApi/Dockerfile
     ports:
-      - "5030:8080"
+      - "5030:5030"
     environment:
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=PeopleService;User Id=sa;Password=Password@1235#;TrustServerCertificate=True;
     depends_on:
       - sqlserver
+    networks:
+      - socialmediaapp
+
+  blazorapp:
+    container_name: frontend
+    image: ${DOCKER_REGISTRY-}frontend
+    build:
+      context: .
+      dockerfile: FrontendApp/Dockerfile
+    ports:
+      - "5159:5159"
+    depends_on:
+      - sqlserver
+      - identityapi
+      - postapi
+      - peopleapi
     networks:
       - socialmediaapp

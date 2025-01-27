@@ -1,7 +1,7 @@
 # Use the official ASP.NET runtime image as the base image for the app
 FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
 WORKDIR /app
-EXPOSE 8080
+EXPOSE 5134
 
 # Use the .NET SDK image for building the app
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build

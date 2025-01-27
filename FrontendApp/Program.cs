@@ -10,14 +10,36 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddSingleton<WeatherForecastService>();
 builder.Services.AddHttpClient();
 
+// Konfiguracja CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowLocalhost", policy =>
+    {
+        policy.WithOrigins("http://localhost:5159")  // Adres frontend aplikacji
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
+// Dodanie SignalR
+builder.Services.AddSignalR();
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+// Obs³uga CORS
+app.UseCors("AllowLocalhost");
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+else
 {
     app.UseExceptionHandler("/Error");
+    app.UseHsts();
 }
 
+app.UseHttpsRedirection();  // Wymusza przekierowanie na HTTPS (jeœli jest wymagane)
 
 app.UseStaticFiles();
 

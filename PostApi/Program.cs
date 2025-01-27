@@ -22,7 +22,7 @@ logger.Debug("init main");
 try
 {
     var builder = WebApplication.CreateBuilder(args);
-
+    builder.WebHost.UseUrls("http://0.0.0.0:5134");
     // Add services to the container.
 
     // NLog: Setup NLog for Dependency injection
