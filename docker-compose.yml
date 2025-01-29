@@ -11,7 +11,7 @@ services:
       - "1433:1433"
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=Password@1235#
+      - MSSQL_SA_PASSWORD=Password@1235#
     volumes:
        - ./sqlserver/data:/var/opt/mssql/data
     networks:
