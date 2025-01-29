@@ -1,9 +1,35 @@
 ﻿@page "/explorePosts"
+@using Microsoft.AspNetCore.WebUtilities
+@using System.Text
+@using System.Text.Json
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
-<h3>Lista postów</h3>
+<h3>Explore posts</h3>
+
+<button class="btn btn-primary mb-3" @onclick="() => showCreateForm = true">Create New Post</button>
+
+@if (showCreateForm)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <h4>Create New Post</h4>
+            <div class="mb-3">
+                <label class="form-label">Content:</label>
+                <textarea class="form-control" @bind="newPost.Content"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Image URL:</label>
+                <input type="text" class="form-control" @bind="newPost.ImageUrl" />
+            </div>
+            <div>
+                <button class="btn btn-primary" @onclick="CreatePost">Submit</button>
+                <button class="btn btn-secondary ms-2" @onclick="() => showCreateForm = false">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
 
 @if (ErrorMessage != null)
 {
@@ -11,30 +37,41 @@
 }
 else if (Posts == null)
 {
-    <p>Ładowanie...</p>
+    <p>Loading...</p>
 }
 else if (!Posts.Any())
 {
-    <p>Brak postów do wyświetlenia.</p>
+    <p>There are no posts to display. :(</p>
 }
 else
 {
     <div>
         @foreach (var post in Posts)
         {
+            var user = UserCache.ContainsKey(post.UserId) ? UserCache[post.UserId] : null;
             <div class="card mb-3">
                 <div class="card-body">
-                    <h5 class="card-title">Post ID: @post.Id</h5>
+                    <div>
+                        <strong>Author:</strong>
+                        @if (user != null)
+                        {
+                            <span>@user?.Username</span>  <!-- Wyświetlamy nazwę użytkownika -->
+                        }
+                        else
+                        {
+                            <span>Loading...</span> <!-- Gdy użytkownik jeszcze nie został pobrany -->
+                        }
+                    </div>
+                    <small class="text-muted">Created: @post.CreatedAt.ToString("g")</small>
                     <p class="card-text">@post.Content</p>
-                    <small class="text-muted">Utworzono: @post.CreatedAt.ToString("g")</small>
-
                     <hr />
+                    <img src="@post.ImageUrl" width="64">
 
                     <div>
-                        <strong>Liczba polubień:</strong> @post.Likes?.Count ?? 0
+                        <strong>Likes:</strong> @post.Likes?.Count
                     </div>
 
-                    <a class="btn btn-info mt-2" @onclick="() => ViewPostDetails(post.Id)">Zobacz szczegóły</a>
+                    <a class="btn btn-info mt-2" @onclick="() => ViewPostDetails(post.Id)">See details</a>
                 </div>
             </div>
         }
@@ -42,8 +79,131 @@ else
 }
 
 @code {
+    // Istniejące zmienne
     private List<PostDto> Posts;
     private string ErrorMessage;
+    private Dictionary<int, UserDto> UserCache = new Dictionary<int, UserDto>();
+
+    // Nowe zmienne dla formularza
+    private bool showCreateForm = false;
+    private CreatePostDto newPost = new CreatePostDto();
+
+    // Klasa dla nowego posta
+    private class CreatePostDto
+    {
+        public string Content { get; set; }
+        public string ImageUrl { get; set; } = string.Empty;  // Domyślna wartość
+    }
+
+    private async Task CreatePost()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                ErrorMessage = "Authorization token not found. Please sign in.";
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var userId = ExtractUserIdFromToken(token);
+            if (userId == 0)
+            {
+                return;
+            }
+
+            var postToCreate = new
+            {
+                UserId = userId,
+                Content = newPost.Content,
+                ImageUrl = string.IsNullOrWhiteSpace(newPost.ImageUrl) ? string.Empty : newPost.ImageUrl
+            };
+
+            var response = await Http.PostAsJsonAsync("http://post-api:5134/Post", postToCreate);
+
+            if (response.IsSuccessStatusCode)
+            {
+                newPost = new CreatePostDto();
+                showCreateForm = false;
+                await OnInitializedAsync();
+                await JSRuntime.InvokeVoidAsync("alert", "Post created successfully!");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                ErrorMessage = $"Failed to create post: {error}";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error creating post: {ex.Message}";
+        }
+    }
+
+    private int ExtractUserIdFromToken(string token)
+    {
+        if (string.IsNullOrEmpty(token))
+        {
+            ErrorMessage = "Authorization token not found. Please sign in.";
+            return 0;
+        }
+        try
+        {
+            var tokenParts = token.Split('.');
+            if (tokenParts.Length != 3)
+            {
+                ErrorMessage = "Invalid token structure.";
+                return 0;
+            }
+            var payload = tokenParts[1];
+            var jsonBytes = WebEncoders.Base64UrlDecode(payload);
+            var jsonString = Encoding.UTF8.GetString(jsonBytes);
+            Console.WriteLine($"Decoded Token Payload: {jsonString}");
+
+            var jsonObject = JsonSerializer.Deserialize<JsonElement>(jsonString);
+
+            if (jsonObject.TryGetProperty("sub", out var userIdProperty))
+            {
+                var userIdString = userIdProperty.GetString();
+                if (int.TryParse(userIdString, out int userId))
+                {
+                    return userId;
+                }
+                else
+                {
+                    ErrorMessage = "User ID (sub) is not a valid integer.";
+                    return 0;
+                }
+            }
+            ErrorMessage = "User ID (sub) not found in token.";
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error decoding token: {ex.Message}";
+            Console.WriteLine($"Error decoding token: {ex.Message}");
+            return 0;
+        }
+    }
+
+    private async Task<int> GetCurrentUserId()
+    {
+        var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+        if (string.IsNullOrEmpty(token))
+            throw new Exception("User not authenticated");
+
+        // Dekoduj token JWT aby uzyskać ID użytkownika
+        var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+        var jsonToken = handler.ReadToken(token) as System.IdentityModel.Tokens.Jwt.JwtSecurityToken;
+
+        var userIdClaim = jsonToken?.Claims.FirstOrDefault(claim => claim.Type == "userId");
+        if (userIdClaim == null)
+            throw new Exception("User ID not found in token");
+
+        return int.Parse(userIdClaim.Value);
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -54,7 +214,7 @@ else
 
             if (string.IsNullOrEmpty(token))
             {
-                ErrorMessage = "Nie znaleziono tokenu autoryzacyjnego. Proszę się zalogować.";
+                ErrorMessage = "Authorization token not found.Please sign in.";
                 return;
             }
 
@@ -63,6 +223,16 @@ else
 
             // Pobierz posty z API
             Posts = await Http.GetFromJsonAsync<List<PostDto>>("http://post-api:5134/Post");
+
+            // Pobierz dane użytkowników dla każdego posta
+            foreach (var post in Posts)
+            {
+                if (!UserCache.ContainsKey(post.UserId))
+                {
+                    var user = await Http.GetFromJsonAsync<UserDto>($"http://identity-api:8001/User/{post.UserId}");
+                    UserCache[post.UserId] = user;  // Cache'owanie użytkownika
+                }
+            }
         }
         catch (HttpRequestException ex)
         {
@@ -73,6 +243,7 @@ else
             ErrorMessage = $"Wystąpił nieoczekiwany błąd: {ex.Message}";
         }
     }
+
 
     private void ViewPostDetails(int postId)
     {
@@ -107,5 +278,13 @@ else
         public int UserId { get; set; }
         public int PostId { get; set; }
         public DateTime CreatedAt { get; set; }
+    }
+
+    public class UserDto
+    {
+        public int Id { get; set; }
+        public string Username { get; set; }
+        public string Email { get; set; }
+        public string Role { get; set; }
     }
 }

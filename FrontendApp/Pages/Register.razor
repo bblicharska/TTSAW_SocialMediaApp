@@ -1,53 +1,66 @@
 ﻿@page "/register"
 @inject HttpClient Http
+@inject IJSRuntime JSRuntime
 @using Microsoft.AspNetCore.Components.Forms
 @using System.ComponentModel.DataAnnotations
 
-
-<h3 >Sign up</h3>
-<EditForm Model="@registerUserDto" OnValidSubmit="RegisterUser">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-
-    <div class="form-group">
-                <label for="username">Username</label>
-                <InputText id="username" @bind-Value="registerUserDto.Username" class="form-control" Placeholder="Username" />
-            </div>
-
-    <div class="form-group">
-                <label for="email">Email</label>
-                <InputText id="email" @bind-Value="registerUserDto.Email"class="form-control" Placeholder="Email" />
-            </div>
-
-    <div class="form-group">
-                <label for="password">Password</label>
-                <InputText id="password" @bind-Value="registerUserDto.Password" class="form-control" InputType="password" Placeholder="Password" />
-            </div>
-
-    <div class="form-group">
-                <label for="confirmPassword">Confirm Password</label>
-                <InputText id="confirmPassword" @bind-Value="registerUserDto.ConfirmPassword" class="form-control" InputType="password" Placeholder="Confirm Password" />
-            </div>
-
-    <button type="submit" class="btn btn-primary">
-                Sign up
-            </button>
- </EditForm>
-
-@if (!string.IsNullOrEmpty(successMessage))
+@if (isLoggedIn)
 {
-    <p style="color: green;">@successMessage</p>
+    <h3>You're already registered and logged in</h3>
+    <button class="btn btn-secondary" @onclick="LogoutUser">Log out</button>
 }
-@if (!string.IsNullOrEmpty(errorMessage))
+else
 {
-    <p style="color: red;">@errorMessage</p>
-}
+    <h3>Sign up</h3>
+    <EditForm Model="@registerUserDto" OnValidSubmit="RegisterUser">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
 
+        <div class="form-group">
+            <label for="username">Username</label>
+            <InputText id="username" @bind-Value="registerUserDto.Username" class="form-control" Placeholder="Username" />
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email</label>
+            <InputText id="email" @bind-Value="registerUserDto.Email" class="form-control" Placeholder="Email" />
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <InputText id="password" @bind-Value="registerUserDto.Password" class="form-control" InputType="password" Placeholder="Password" />
+        </div>
+
+        <div class="form-group">
+            <label for="confirmPassword">Confirm Password</label>
+            <InputText id="confirmPassword" @bind-Value="registerUserDto.ConfirmPassword" class="form-control" InputType="password" Placeholder="Confirm Password" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Sign up</button>
+    </EditForm>
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <p style="color: green;">@successMessage</p>
+    }
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <p style="color: red;">@errorMessage</p>
+    }
+}
 
 @code {
     private RegisterUserDto registerUserDto = new();
     private string? successMessage;
     private string? errorMessage;
+    private bool isLoggedIn;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if the user is already logged in
+        var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+        isLoggedIn = !string.IsNullOrEmpty(token);
+    }
 
     private async Task RegisterUser()
     {
@@ -55,38 +68,54 @@
         {
             errorMessage = null;
             successMessage = null;
-            var response = await Http.PostAsJsonAsync("http://localhost:8001/User/register", registerUserDto);
+            var response = await Http.PostAsJsonAsync("http://identity-api:8001/User/register", registerUserDto);
 
             if (response.IsSuccessStatusCode)
             {
-                    successMessage = "Registration successful. You can now log in.";
+                // Registration successful, automatically log in the user
+                var result = await response.Content.ReadFromJsonAsync<TokenDto>();
+                successMessage = "Registration successful. You're now logged in.";
+
+                if (result != null && !string.IsNullOrEmpty(result.AccessToken))
+                {
+                    // Store token in localStorage
+                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", "authToken", result.AccessToken);
+                    isLoggedIn = true; // Mark the user as logged in
+                }
             }
             else
             {
                 errorMessage = "Registration failed. Please try again.";
-
                 var errorContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine("Błąd rejestracji: " + errorContent);
+                Console.WriteLine("Registration error: " + errorContent);
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Błąd: {ex.Message}");
+            Console.WriteLine($"Error: {ex.Message}");
         }
+    }
+
+    private async Task LogoutUser()
+    {
+        // Remove token from localStorage
+        await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
+        isLoggedIn = false; // Update the state to reflect the logout
+        successMessage = null;
+        errorMessage = null;
     }
 
     public class RegisterUserDto
     {
         public string Username { get; set; }
-
         public string Email { get; set; }
         public string Password { get; set; }
         public string ConfirmPassword { get; set; }
     }
+
     public class TokenDto
     {
-        public string AccessToken { get; set; } // Twój JWT
-        public DateTime ExpiresAt { get; set; } // Data wygaśnięcia tokenu
+        public string AccessToken { get; set; } // JWT
+        public DateTime ExpiresAt { get; set; } // Token expiration date
     }
 }
-

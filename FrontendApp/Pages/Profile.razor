@@ -1,0 +1,182 @@
+﻿@page "/profile"
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.WebUtilities
+@using System.Text.Json
+@using System.Text
+@using System.IdentityModel.Tokens.Jwt
+@inject NavigationManager Navigation
+
+
+<h3>Your Profile</h3>
+
+@if (user == null)
+{
+    <p>Loading user data...</p>
+}
+else
+{
+    <div>
+        <p><strong>Username:</strong> @user.Username</p>
+        <p><strong>Email:</strong> @user.Email</p>
+        <p><strong>Role:</strong> @user.Role</p>
+
+        <button class="btn btn-danger" @onclick="DeleteAccount">Delete Account</button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <p style="color: red;">@errorMessage</p>
+}
+
+@code {
+    private UserDto user;
+    private string errorMessage;
+    private bool isChangePasswordModalVisible = false;
+    private ChangePasswordDto changePasswordDto = new ChangePasswordDto();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfile();
+    }
+
+    private async Task LoadProfile()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var userId = ExtractUserIdFromToken(token);
+
+            if (userId == 0)
+            {
+                errorMessage = "Unable to retrieve user ID from token.";
+                return;
+            }
+
+            // Now use the user ID to fetch the user data
+            var response = await Http.GetFromJsonAsync<UserDto>($"http://identity-api:8001/User/{userId}");
+
+            if (response != null)
+            {
+                user = response; // Set the user data to display on the profile page
+            }
+            else
+            {
+                errorMessage = "Failed to load user profile.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading user profile: {ex.Message}";
+        }
+    }
+
+    private int ExtractUserIdFromToken(string token)
+    {
+        if (string.IsNullOrEmpty(token))
+        {
+            errorMessage = "Authorization token not found. Please sign in.";
+            return 0; // Token is missing
+        }
+
+        try
+        {
+            var tokenParts = token.Split('.'); // Split the token into 3 parts
+            if (tokenParts.Length != 3)
+            {
+                errorMessage = "Invalid token structure.";
+                return 0; // Invalid token structure
+            }
+
+            var payload = tokenParts[1]; // Payload is the second part of the token
+            var jsonBytes = WebEncoders.Base64UrlDecode(payload); // Decode the payload from base64Url encoding
+            var jsonString = Encoding.UTF8.GetString(jsonBytes); // Convert byte array to JSON string
+
+            Console.WriteLine($"Decoded Token Payload: {jsonString}"); // Log token payload for debugging
+
+            // Deserialize the JSON string into a JsonElement to extract the user ID
+            var jsonObject = JsonSerializer.Deserialize<JsonElement>(jsonString);
+
+            // Try to get the "sub" claim and convert to int
+            if (jsonObject.TryGetProperty("sub", out var userIdProperty))
+            {
+                var userIdString = userIdProperty.GetString();
+
+                // Attempt to parse the string to an integer
+                if (int.TryParse(userIdString, out int userId))
+                {
+                    return userId; // Return the user ID as integer
+                }
+                else
+                {
+                    errorMessage = "User ID (sub) is not a valid integer.";
+                    return 0; // Invalid user ID format
+                }
+            }
+
+            errorMessage = "User ID (sub) not found in token.";
+            return 0; // User ID (sub) not found in the token
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error decoding token: {ex.Message}";
+            Console.WriteLine($"Error decoding token: {ex.Message}"); // Log error for debugging
+            return 0; // General error during decoding
+        }
+    }
+
+    private async Task DeleteAccount()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                errorMessage = "Authorization token not found. Please sign in.";
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await Http.DeleteAsync($"http://identity-api:8001/User/{user.Id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Remove the token from localStorage to log out
+                await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
+
+                // Display success message and log the user out
+                errorMessage = "Account removed. Please create a new account.";
+                user = null; // Clear user data
+
+            }
+            else
+            {
+                errorMessage = "Failed to delete account.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+    }
+
+    public class ChangePasswordDto
+    {
+        public string CurrentPassword { get; set; }
+        public string NewPassword { get; set; }
+        public string ConfirmNewPassword { get; set; }
+    }
+
+    public class UserDto
+    {
+        public int Id { get; set; }
+        public string Username { get; set; }
+        public string Email { get; set; }
+        public string Role { get; set; }
+    }
+}

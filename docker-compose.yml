@@ -19,9 +19,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P 'Password@1235#' -Q 'SELECT 1'"]
       interval: 10s
-      timeout: 5s
+      timeout: 30s
       retries: 5
-      start_period: 120s
+      start_period: 150s
     entrypoint: /bin/bash -c "apt-get update && apt-get install -y mssql-tools && /opt/mssql/bin/sqlservr"
     user: root 
     command: /opt/mssql/bin/sqlservr  

@@ -24,13 +24,11 @@ namespace IdentityServiceInfrastructure
         {
             try
             {
-                // Sprawdzenie, czy można połączyć się z bazą danych
+
                 if (_dbContext.Database.CanConnect())
                 {
-                    // Zastosowanie wszystkich migracji, jeśli baza danych jest dostępna
                     _dbContext.Database.Migrate();
 
-                    // Seed tylko wtedy, gdy brak użytkowników w bazie danych
                     if (!_dbContext.Users.Any())
                     {
                         var users = new List<User>

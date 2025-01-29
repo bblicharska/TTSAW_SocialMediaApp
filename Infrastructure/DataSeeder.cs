@@ -19,7 +19,6 @@ namespace Infrastructure
 
         public void Seed()
         {
-
             if (_dbContext.Database.CanConnect())
             {
                 _dbContext.Database.Migrate();
@@ -33,7 +32,7 @@ namespace Infrastructure
                             UserId = 1,
                             Content = "Hej widzowie. Pozdrowionka z Podgoricy :)",
                             CreatedAt =  DateTime.Now.AddDays(-3),
-                            ImageUrl = "/images/catImage.jpg",
+                            ImageUrl = "/images/hotel1.jpg",
                             Comments = new List<Comment>
                             {
                                 new Comment
@@ -58,7 +57,7 @@ namespace Infrastructure
                             UserId = 1,
                             Content = "Hej widzowie. Pozdrowionka z Bangkoku :)",
                             CreatedAt =  DateTime.Now.AddDays(-1),
-                            ImageUrl = "/images/catImage.jpg",
+                            ImageUrl = "/images/hotel2.jpg",
                         },
                     };
 

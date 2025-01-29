@@ -1,0 +1,179 @@
+﻿@page "/friends"
+@using System.Text.Json
+@using Microsoft.AspNetCore.WebUtilities
+@using System.Text
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<h3>Users</h3>
+
+@if (isLoading)
+{
+    <p>Loading users...</p>
+}
+else if (allUsers == null || !allUsers.Any())
+{
+    <p>No users found.</p>
+}
+else
+{
+    <ul>
+        @foreach (var user in allUsers)
+        {
+            <li>
+                @user.Username - @user.Email
+                @if (connections.Any(c => c.FriendId == user.Id))
+                {
+                    var connection = connections.FirstOrDefault(c => c.FriendId == user.Id);
+                    <button class="btn btn-secondary" @onclick="() => UnfollowUser(connection.Id)">Obserwujesz</button>
+                }
+                else
+                {
+                    <button class="btn btn-primary" @onclick="() => FollowUser(user.Id)">Obserwuj</button>
+                }
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private List<UserDto> allUsers = new();
+    private List<ConnectionDto> connections = new();
+    private int currentUserId;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                Console.WriteLine("No token found. Please log in.");
+                isLoading = false;
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            currentUserId = ExtractUserIdFromToken(token);
+            if (currentUserId == 0)
+            {
+                Console.WriteLine("Invalid user ID.");
+                isLoading = false;
+                return;
+            }
+
+            await LoadUsers();
+            await LoadConnections();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadUsers()
+    {
+        var response = await Http.GetAsync("http://identity-api:8001/User");
+        if (response.IsSuccessStatusCode)
+        {
+            allUsers = await response.Content.ReadFromJsonAsync<List<UserDto>>() ?? new List<UserDto>();
+        }
+    }
+
+    private async Task LoadConnections()
+    {
+        var response = await Http.GetAsync($"http://people-api:5030/Connections/user/{currentUserId}");
+        if (response.IsSuccessStatusCode)
+        {
+            connections = await response.Content.ReadFromJsonAsync<List<ConnectionDto>>() ?? new List<ConnectionDto>();
+        }
+    }
+
+    private async Task FollowUser(int friendId)
+    {
+        var dto = new CreateConnectionDto { UserId = currentUserId, FriendId = friendId };
+        var response = await Http.PostAsJsonAsync("http://people-api:5030/Connections", dto);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var newConnection = await response.Content.ReadFromJsonAsync<ConnectionDto>();
+            connections.Add(newConnection);
+            StateHasChanged();
+        }
+        else
+        {
+            Console.WriteLine("Failed to follow user.");
+        }
+    }
+
+    private async Task UnfollowUser(int connectionId)
+    {
+        var response = await Http.DeleteAsync($"http://people-api:5030/Connections/{connectionId}");
+
+        if (response.IsSuccessStatusCode)
+        {
+            connections.RemoveAll(c => c.Id == connectionId);
+            StateHasChanged();
+        }
+        else
+        {
+            Console.WriteLine("Failed to unfollow user.");
+        }
+    }
+
+    private int ExtractUserIdFromToken(string token)
+    {
+        if (string.IsNullOrEmpty(token)) return 0;
+
+        try
+        {
+            var tokenParts = token.Split('.');
+            if (tokenParts.Length != 3) return 0;
+
+            var payload = tokenParts[1];
+            var jsonBytes = WebEncoders.Base64UrlDecode(payload);
+            var jsonString = Encoding.UTF8.GetString(jsonBytes);
+            var jsonObject = JsonSerializer.Deserialize<JsonElement>(jsonString);
+
+            if (jsonObject.TryGetProperty("sub", out var userIdProperty))
+            {
+                return int.TryParse(userIdProperty.GetString(), out int userId) ? userId : 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error decoding token: {ex.Message}");
+        }
+
+        return 0;
+    }
+
+    public class ConnectionDto
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public int FriendId { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class CreateConnectionDto
+    {
+        public int UserId { get; set; }
+        public int FriendId { get; set; }
+    }
+
+    public class UserDto
+    {
+        public int Id { get; set; }
+        public string Username { get; set; }
+        public string Email { get; set; }
+        public string Role { get; set; }
+    }
+}
